@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "813514904000",
+    "project_id": "teaapp-fde49",
+    "storage_bucket": "teaapp-fde49.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813514904000:android:4da9581a8a57752e2c3825",
+        "android_client_info": {
+          "package_name": "com.example.teaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBs1CjtX-b9TmtJ0MUjO2A8G4mQaJ38mSQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
