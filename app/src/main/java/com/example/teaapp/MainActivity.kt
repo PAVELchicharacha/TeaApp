@@ -1,8 +1,19 @@
 package com.example.teaapp
 
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.ContactsContract.Profile
+import android.provider.MediaStore
+import android.provider.MediaStore.Audio.Media
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +34,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.runtime.currentCompositionLocalContext
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 
 
@@ -139,7 +154,7 @@ fun MainScreen() {
                     "AddTea"-> AddTea()
                     "Favorite"-> PreviewTeaList()
                     "Dinary"-> MyScreen1()
-                    "Profile"->MyScreen()
+                    "Profile"->Profile()
                 }
             }
             Row (modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -177,15 +192,58 @@ fun TeaItem(tea: Tea) {
         )
     }
 }
-//афк тема,нужна только бля того,что бы раньше можно было перекючаться между "экранами"
+//афк тема,нужна только для того,что бы раньше можно было перекючаться между "экранами"
 @Composable
 fun Dinary(){
     Text("Dinary")
 }
+//профиль и выбор фото с телефона
 @Composable
 fun Profile(){
-    Text("profile")
+
+    var imgUri by remember{ mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    val bitmap = remember { mutableStateOf<Bitmap?>(null) }
+
+
+    val launcher = rememberLauncherForActivityResult(contract =ActivityResultContracts.GetContent() ){
+        uri: Uri? ->  imgUri=uri
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Button(onClick = {launcher.launch("image/*")}) {
+        Text(text = "pick image")
+    }
+
+    Column (modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally)
+    {
+        imgUri?.let{
+            if(Build.VERSION.SDK_INT<28) {
+                bitmap.value = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+            }
+            else {
+               val sourse = ImageDecoder.createSource(context.contentResolver,it)
+                bitmap.value = ImageDecoder.decodeBitmap(sourse)
+            }
+            bitmap.value?.let {
+                btm->
+                Image(
+                    bitmap=btm.asImageBitmap(),
+//                    imageVector = btm.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(400.dp).padding(20.dp)
+
+                )
+            }
+
+        }
+
+    }
+
 }
+
 
 
 
