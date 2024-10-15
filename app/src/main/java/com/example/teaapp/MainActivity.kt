@@ -5,13 +5,11 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.ContactsContract.Profile
 import android.provider.MediaStore
-import android.provider.MediaStore.Audio.Media
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -34,11 +32,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.currentCompositionLocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.google.firebase.Firebase
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.firestore
 
 
 class MainActivity : ComponentActivity() {
@@ -53,65 +55,110 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MyApp() {
     var isRegistered by remember { mutableStateOf(false) }
-//    var isCreated by remember { mutableStateOf(false) }
     if (isRegistered) {
         MainScreen()
     } else {
         RegistrationScreen(onRegister = { isRegistered = true })
     }
-
-//    if (isCreated) {
-//        EnterAccount(onCreation = { isRegistered = true })
-//    }
 }
-
 
 //это регистрация акаунта
 @Composable
 fun RegistrationScreen(onRegister: () -> Unit) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val auth = Firebase.auth
+
+    val email = remember {
+        mutableStateOf("")
+    }
+    val password = remember {
+        mutableStateOf("")
+    }
+    Log.d("mylog", "user email:${auth.currentUser?.email}")
 
     Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        TextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Логин") }
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Пароль") },
-            visualTransformation = PasswordVisualTransformation()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
+        TextField(value = email.value, onValueChange = {
+            email.value = it
+        })
+        Spacer(modifier = Modifier.height(10.dp))
+        TextField(value = password.value, onValueChange = {
+            password.value = it
+        })
         Button(onClick = {
-            // Здесь должна быть логика валидации
-            onRegister() // Переход на основной экран
+            SignIn(auth, email.value, password.value)
+            onRegister()
         }) {
-            Text("Войти в аккаунт")
+            Text(text = "Sign In")
         }
-        Button(modifier = Modifier.padding(50.dp), onClick = {
-            // Здесь должна быть логика валидации
-            onRegister() // Переход на основной экран
+        Spacer(modifier = Modifier.height(10.dp))
+        Button(onClick = {
+            SignUp(auth, email.value, password.value)
+            onRegister()
         }) {
-            Text("создать аккаунт и войти")
+            Text(text = "Sign Up")
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+//        Button(onClick = {
+//            SignOut(auth)
+//
+//        }) {
+//            Text(text = "Sign out")
+//        }
+    }
+}
+
+public fun SignOut(auth: FirebaseAuth) {
+    auth.signOut()
+}
+
+public fun DeleteAccount(auth: FirebaseAuth, email: String, password: String) {
+    val cre = EmailAuthProvider.getCredential(email, password)
+    auth.currentUser?.reauthenticate(cre)?.addOnCompleteListener {
+        if (it.isSuccessful) {
+            auth.currentUser?.delete()?.addOnCompleteListener {
+                if (it.isSuccessful) {
+                    Log.d("myLog", "Account is Deleted")
+                } else {
+                    Log.d("myLog", "Account is NOT Deleted")
+
+                }
+
+            }
+
+        } else {
+            Log.d("myLog", "Auth Exeption")
+
+        }
+    }
+}
+
+public fun SignIn(auth: FirebaseAuth, email: String, password: String) {
+    auth.signInWithEmailAndPassword(email, password).addOnCompleteListener {
+        if (it.isSuccessful) {
+            Log.d("myLog", "Sign up successfull")
+        } else {
+            Log.d("myLog", "Sign up failure")
+        }
+    }
+}
+
+public fun SignUp(auth: FirebaseAuth, email: String, password: String) {
+    auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener {
+        if (it.isSuccessful) {
+            Log.d("myLog", "Sign up successfull")
+        } else {
+            Log.d("myLog", "Sign up failure")
         }
     }
 }
 
 data class Tea(
-    val name: String,
-    val volume: String,
-    val temperature: String
+    val name: String = "",
+    val volume: String = "",
+    val temperature: String = ""
 )
 
 @Composable
@@ -122,6 +169,7 @@ fun TeaList(teaItems: List<Tea>) {
         }
     }
 }
+
 //данные для чая
 @Composable
 fun PreviewTeaList() {
@@ -149,32 +197,40 @@ fun MainScreen() {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             var route by remember { mutableStateOf("home") }
-            Box(modifier = Modifier.weight(1f).padding(16.dp)){
-                when(route){
-                    "AddTea"-> AddTea()
-                    "Favorite"-> PreviewTeaList()
-                    "Dinary"-> MyScreen1()
-                    "Profile"->Profile()
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                when (route) {
+                    "AddTea" -> lzcm()
+                    "Favorite" -> PreviewTeaList()
+                    "Dinary" -> MyScreen1()
+                    "Profile" -> Profile()
                 }
             }
-            Row (modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            )
             {
-                Text(text = "AddTea", modifier = Modifier.clickable { route="AddTea" })
-                Text(text = "Favorite", modifier = Modifier.clickable { route="Favorite" })
-                Text(text = "orders", modifier = Modifier.clickable { route="Dinary" })
-                Text(text = "Profile", modifier = Modifier.clickable { route="Profile" })
+                Text(text = "AddTea", modifier = Modifier.clickable { route = "AddTea" })
+                Text(text = "Favorite", modifier = Modifier.clickable { route = "Favorite" })
+                Text(text = "orders", modifier = Modifier.clickable { route = "Dinary" })
+                Text(text = "Profile", modifier = Modifier.clickable { route = "Profile" })
             }
         }
     }
 }
 
 
-
 @Composable
-fun AddTea(){
+fun AddTea() {
     Text("Add Tea")
 }
+
 @Composable
 fun TeaItem(tea: Tea) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -192,48 +248,57 @@ fun TeaItem(tea: Tea) {
         )
     }
 }
+
 //афк тема,нужна только для того,что бы раньше можно было перекючаться между "экранами"
 @Composable
-fun Dinary(){
+fun Dinary() {
     Text("Dinary")
 }
+
 //профиль и выбор фото с телефона
 @Composable
-fun Profile(){
+fun Profile() {
 
-    var imgUri by remember{ mutableStateOf<Uri?>(null) }
+    var imgUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
     val bitmap = remember { mutableStateOf<Bitmap?>(null) }
 
 
-    val launcher = rememberLauncherForActivityResult(contract =ActivityResultContracts.GetContent() ){
-        uri: Uri? ->  imgUri=uri
-    }
+    val launcher =
+        rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+            imgUri = uri
+        }
     Spacer(modifier = Modifier.height(12.dp))
 
-    Button(onClick = {launcher.launch("image/*")}) {
+    Button(onClick = { launcher.launch("image/*") }) {
         Text(text = "pick image")
     }
+//    Button(onClick = { DeleteAccount(auth, email, password) }) {
+//        Text(text = "delete account")
+//    }
 
-    Column (modifier = Modifier.fillMaxSize(),
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally)
+        horizontalAlignment = Alignment.CenterHorizontally
+    )
     {
-        imgUri?.let{
-            if(Build.VERSION.SDK_INT<28) {
+        imgUri?.let {
+            if (Build.VERSION.SDK_INT < 28) {
                 bitmap.value = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-            }
-            else {
-               val sourse = ImageDecoder.createSource(context.contentResolver,it)
+            } else {
+                val sourse = ImageDecoder.createSource(context.contentResolver, it)
                 bitmap.value = ImageDecoder.decodeBitmap(sourse)
             }
-            bitmap.value?.let {
-                btm->
+            bitmap.value?.let { btm ->
                 Image(
-                    bitmap=btm.asImageBitmap(),
+                    bitmap = btm.asImageBitmap(),
 //                    imageVector = btm.asImageBitmap(),
                     contentDescription = null,
-                    modifier = Modifier.size(400.dp).padding(20.dp)
+                    modifier = Modifier
+                        .size(400.dp)
+                        .padding(20.dp)
 
                 )
             }
@@ -245,15 +310,10 @@ fun Profile(){
 }
 
 
-
-
-
-
-
-
 //какая то тема для ввода данных  для laZzy column
 fun handleInput(input: String) {
     // Обработка данных
+    val fs = Firebase.firestore
 }
 
 @Composable
@@ -265,6 +325,7 @@ fun MyScreen1() {
     }
 }
 
+///херь для добавления чего либо в lazy column
 @Composable
 fun MyScreen() {
     var input by remember { mutableStateOf("") }
@@ -276,7 +337,7 @@ fun MyScreen() {
     }
 
     var input1 by remember { mutableStateOf("") }
-    LazyColumn ( modifier = Modifier.padding(horizontal = 0.dp, vertical = 100.dp) ){
+    LazyColumn(modifier = Modifier.padding(horizontal = 0.dp, vertical = 100.dp)) {
         items(items = listOf("Item 1")) { item ->
             TextField(value = input1, onValueChange = { input1 = it })
             Spacer(modifier = Modifier.height(16.dp))
@@ -284,12 +345,62 @@ fun MyScreen() {
     }
 
     var input2 by remember { mutableStateOf("") }
-    LazyColumn ( modifier = Modifier.padding(horizontal = 0.dp, vertical = 200.dp) ){
+    LazyColumn(modifier = Modifier.padding(horizontal = 0.dp, vertical = 200.dp)) {
         items(items = listOf("Item 1")) { item ->
             TextField(value = input2, onValueChange = { input2 = it })
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = { handleInput(input) }) { Text("добавить") }
 
+        }
+    }
+}
+
+@Composable
+fun lzcm() {
+    val fs = Firebase.firestore
+    val list = remember {
+        mutableStateOf(emptyList<Tea>())
+    }
+    fs.collection("Tea").addSnapshotListener { snapShot, exception ->
+        list.value = snapShot?.toObjects(Tea::class.java) ?: emptyList()
+    }
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxHeight(0.85f)
+        ) {
+            items(list.value) { tea ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding()
+                ) {
+                    Text(
+                        text = tea.name, modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentWidth()
+                    )
+
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Button(modifier = Modifier
+            .fillMaxWidth()
+            .padding(30.dp), onClick = {
+            fs.collection("Tea").document().set(
+                Tea(
+                    "tea",
+                    "300мл",
+                    "1337"
+                )
+            )
+        })
+        {
+            Text(text = "add tea")
         }
     }
 }
