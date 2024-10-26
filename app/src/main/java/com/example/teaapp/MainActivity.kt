@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.renderscript.ScriptGroup.Input
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -111,19 +110,18 @@ fun RegistrationScreen(onRegister: () -> Unit) {
         }
     }
 }
-
-private fun SignOut(auth: FirebaseAuth) {
+fun SignOut(auth: FirebaseAuth) {
     auth.signOut()
 
 }
 
-private fun DeleteAccount(auth: FirebaseAuth) {
+fun DeleteAccount(auth: FirebaseAuth) {
     auth.currentUser?.delete()!!
     Log.d("myLog", "delete is successfull")
 
 }
 
-private fun SignIn(auth: FirebaseAuth, email: String, password: String) {
+fun SignIn(auth: FirebaseAuth, email: String, password: String) {
     auth.signInWithEmailAndPassword(email, password).addOnCompleteListener {
         if (it.isSuccessful) {
             Log.d("myLog", "Sign up successfull")
@@ -133,7 +131,7 @@ private fun SignIn(auth: FirebaseAuth, email: String, password: String) {
     }
 }
 
-private fun SignUp(auth: FirebaseAuth, email: String, password: String) {
+fun SignUp(auth: FirebaseAuth, email: String, password: String) {
     auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener {
         if (it.isSuccessful) {
             Log.d("myLog", "Sign up successfull")
@@ -142,6 +140,7 @@ private fun SignUp(auth: FirebaseAuth, email: String, password: String) {
         }
     }
 }
+
 
 data class Tea(
     val name: String = "",
@@ -191,9 +190,9 @@ fun MainScreen(auth: FirebaseAuth) {
                     .padding(16.dp)
             ) {
                 when (route) {
-                    "AddTea" -> lzcm()
+                    "AddTea" -> Lzcm()
                     "Favorite" -> PreviewTeaList()
-//                    "Dinary" ->
+                    "Dinary"-> Dinary()
                     "Profile" -> Profile(auth)
                 }
             }
@@ -206,7 +205,7 @@ fun MainScreen(auth: FirebaseAuth) {
             {
                 Text(text = "AddTea", modifier = Modifier.clickable { route = "AddTea" })
                 Text(text = "Favorite", modifier = Modifier.clickable { route = "Favorite" })
-                Text(text = "orders", modifier = Modifier.clickable { route = "Dinary" })
+                Text(text = "Dinary", modifier = Modifier.clickable { route = "Dinary" })
                 Text(text = "Profile", modifier = Modifier.clickable { route = "Profile" })
             }
         }
@@ -283,7 +282,7 @@ fun Profile(auth: FirebaseAuth) {
 }
 
 @Composable
-fun lzcm() {
+fun Lzcm() {
 
     val fs = Firebase.firestore
     val list = remember {
@@ -351,6 +350,65 @@ fun lzcm() {
         })
         {
             Text(text = "add tea")
+        }
+    }
+}
+//экран добавления даты чаепития
+@Composable
+fun Dinary() {
+    val fs = Firebase.firestore
+    val list = remember {
+        mutableStateOf(emptyList<Tea>())
+    }
+    fs.collection("Dinary").addSnapshotListener { snapShot, exception ->
+        list.value = snapShot?.toObjects(Tea::class.java) ?: emptyList()
+    }
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxHeight(0.75f)
+        ) {
+            items(list.value) { date ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding()
+                ) {
+                    Text(
+                        text = date.name, modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentWidth()
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        var Date by remember { mutableStateOf("") }
+
+        Row(
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+
+            TextField(modifier = Modifier.width(90.dp),
+                value = Date,
+                onValueChange = { Date = it },
+                label = { Text("Date") }
+            )
+        }
+        Button(modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp), onClick = {
+            fs.collection("Dinary").document().set(
+                Tea(
+                    Date
+                )
+            )
+        })
+        {
+            Text(text = "add Date")
         }
     }
 }
